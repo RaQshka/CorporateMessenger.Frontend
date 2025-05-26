@@ -1,46 +1,56 @@
 import { useState, useEffect } from 'react';
-import {
-  Box,
-  Flex,
-  Link,
-  Button,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Avatar,
-  Text,
-} from '@chakra-ui/react';
+import { Box, Flex, Link, Button, Menu, MenuButton, MenuList, MenuItem, Avatar, Text, useToast } from '@chakra-ui/react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { logoutUser, getProfile } from '../services/api';
 
 function Header() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
+  const toast = useToast();
 
-  // Проверка авторизации при загрузке компонента
   useEffect(() => {
     const token = localStorage.getItem('token');
-    setIsAuthenticated(!!token);
-  }, []);
+    if (token) {
+      getProfile()
+        .then(() => setIsAuthenticated(true))
+        .catch(() => {
+          localStorage.removeItem('token');
+          setIsAuthenticated(false);
+          toast({
+            title: 'Сессия истекла',
+            description: 'Пожалуйста, войдите снова.',
+            status: 'warning',
+            duration: 5000,
+            isClosable: true,
+          });
+        });
+    }
+  }, [toast]);
 
   const handleLogout = async () => {
     try {
-      await axios.post(
-        'http://localhost:5000/api/auth/logout',
-        {},
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        }
-      );
+      await logoutUser();
       localStorage.removeItem('token');
       setIsAuthenticated(false);
       navigate('/login');
+      toast({
+        title: 'Успех',
+        description: 'Вы вышли из системы.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
     } catch (error) {
-      console.error('Ошибка при выходе:', error);
       localStorage.removeItem('token');
       setIsAuthenticated(false);
       navigate('/login');
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось выйти. Сессия завершена.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
@@ -54,13 +64,13 @@ function Header() {
           {isAuthenticated ? (
             <>
               <Link as={RouterLink} to="/dashboard" _hover={{ textDecoration: 'underline' }}>
-                Главная
+                Панель
               </Link>
-              <Link as={RouterLink} to="/chat/00000000-0000-0000-0000-000000000000" _hover={{ textDecoration: 'underline' }}>
+              <Link as={RouterLink} to="/chats" _hover={{ textDecoration: 'underline' }}>
                 Чаты
               </Link>
               <Link as={RouterLink} to="/admin" _hover={{ textDecoration: 'underline' }}>
-                Администрирование
+                Админ
               </Link>
               <Menu>
                 <MenuButton as={Button} variant="ghost" p={0}>

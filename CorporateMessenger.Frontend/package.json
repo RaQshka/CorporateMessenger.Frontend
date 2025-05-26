@@ -9,9 +9,11 @@
     "lint": "eslint . --ext js,jsx,ts,tsx --fix"
   },
   "dependencies": {
+    "@chakra-ui/icons": "^2.2.4",
     "@chakra-ui/react": "^2.10.9",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@microsoft/signalr": "^8.0.7",
     "@tailwindcss/vite": "^4.1.7",
     "axios": "^1.9.0",
     "framer-motion": "^12.12.2",

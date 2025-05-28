@@ -24,8 +24,8 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
   const activitiesRef = useRef(null);
   const toast = useToast();
 
-  const canDeleteMessages = (userPermissions & 8) === 8; // Example bit for DeleteMessage
-  const canDeleteDocuments = (userPermissions & 4) === 4; // Example bit for DeleteDocument
+  const canDeleteAnyMessages = (userPermissions & 8) === 8; // DeleteMessage
+  const canDeleteAnyDocuments = (userPermissions & 4) === 4; // DeleteDocument
 
   const fetchActivities = async (skipValue, append = false) => {
     setIsLoading(true);
@@ -58,17 +58,6 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
     }
   }, [chatId]);
 
-  const handleScroll = () => {
-    if (activitiesRef.current?.scrollTop === 0 && hasMore && !isLoading) {
-      setIsLoading(true);
-      const newSkip = skip + 50;
-      fetchActivities(newSkip, true).then(() => {
-        setSkip(newSkip);
-        setIsLoading(false);
-      });
-    }
-  };
-
   useEffect(() => {
     if (connection && chatId) {
       const handleReceiveMessage = () => fetchActivities(skip);
@@ -100,7 +89,7 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
       await sendMessage({ chatId, content: message });
       setMessage('');
       fetchActivities(skip);
-      activitiesRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      activitiesRef.current.scrollTop = activitiesRef.current.scrollHeight;
     } catch (err) {
       toast({
         title: 'Ошибка',
@@ -158,7 +147,7 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
   };
 
   return (
-    <VStack spacing={4} align="stretch">
+    <VStack spacing={4} align="stretch" bg="#F5F6FA">
       <Box
         ref={activitiesRef}
         maxH="60vh"
@@ -166,7 +155,7 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
         p={2}
         borderWidth={1}
         borderRadius="md"
-        onScroll={handleScroll}
+        bg="#FFFFFF"
       >
         {isLoading && <Text>Загрузка...</Text>}
         {activities.map((activity) => (
@@ -176,7 +165,7 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
               message={activity.data}
               userId={userId}
               onUpdate={() => fetchActivities(skip)}
-              canDelete={canDeleteMessages}
+              canDeleteAnyMessages={canDeleteAnyMessages}
             />
           ) : (
             <DocumentItem
@@ -184,7 +173,7 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
               document={activity.data}
               userId={userId}
               onUpdate={() => fetchActivities(skip)}
-              canDelete={canDeleteDocuments}
+              canDeleteAnyDocuments={canDeleteAnyDocuments}
             />
           )
         ))}
@@ -195,6 +184,8 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
         onKeyDown={handleKeyDown}
         placeholder="Введите сообщение..."
         isDisabled={isSending || isLoading}
+        bg="#FFFFFF"
+        borderColor="#E2E8F0"
       />
       <Button
         colorScheme="blue"
@@ -210,6 +201,8 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
           type="file"
           onChange={(e) => setFile(e.target.files[0])}
           isDisabled={isSending || isLoading}
+          bg="#FFFFFF"
+          borderColor="#E2E8F0"
         />
         <Button
           colorScheme="teal"

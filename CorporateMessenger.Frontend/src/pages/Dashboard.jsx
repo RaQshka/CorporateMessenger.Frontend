@@ -56,7 +56,7 @@ function Dashboard() {
 
   useEffect(() => {
     const newConnection = new HubConnectionBuilder()
-      .withUrl('http://localhost:5000/chatHub', {
+      .withUrl('http://localhost:5056/chatHub', {
         accessTokenFactory: () => localStorage.getItem('token'),
       })
       .withAutomaticReconnect()

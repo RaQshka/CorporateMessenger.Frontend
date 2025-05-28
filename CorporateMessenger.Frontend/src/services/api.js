@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5056/api',
+  baseURL: 'http://localhost:5000/api',
   withCredentials: true, // Для отправки и получения куки (refreshToken, UserId)
 });
 

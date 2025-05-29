@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'http://localhost:5056/api',
   withCredentials: true, // Для отправки и получения куки (refreshToken, UserId)
 });
 
@@ -62,6 +62,9 @@ export const deleteUser = (data) => api.delete('/auth/delete-user', { data }).th
 
 export const getUserInfo = (userId) =>
   api.get(`/auth/user-info?UserId=${userId}`).then((res) => res.data);
+
+export const getFullUserInfo = (userId) =>
+  api.get(`/auth/user-full-info?UserId=${userId}`).then((res) => res.data);
 
 export const getProfile = () => api.get('/auth/profile').then((res) => res.data);
 

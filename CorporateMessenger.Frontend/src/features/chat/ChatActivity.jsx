@@ -4,11 +4,12 @@ import {
   Input,
   Button,
   VStack,
-  FormControl,
-  FormLabel,
+  HStack,
+  IconButton,
   Text,
   useToast,
 } from '@chakra-ui/react';
+import { AttachmentIcon } from '@chakra-ui/icons';
 import { getChatActivity, sendMessage, uploadDocument } from '../../services/api';
 import MessageItem from './MessageItem';
 import DocumentItem from './DocumentItem';
@@ -24,8 +25,8 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
   const activitiesRef = useRef(null);
   const toast = useToast();
 
-  const canDeleteAnyMessages = (userPermissions & 8) === 8; // DeleteMessage
-  const canDeleteAnyDocuments = (userPermissions & 4) === 4; // DeleteDocument
+  const canDeleteAnyMessages = (userPermissions & 8) === 8;
+  const canDeleteAnyDocuments = (userPermissions & 4) === 4;
 
   const fetchActivities = async (skipValue, append = false) => {
     setIsLoading(true);
@@ -146,8 +147,12 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
     }
   };
 
+  useEffect(() => {
+    if (file) handleUploadDocument(); // Auto-upload when file is selected
+  }, [file]);
+
   return (
-    <VStack spacing={4} align="stretch" bg="#F5F6FA">
+    <VStack spacing={3} align="stretch" bg="#F5F6FA">
       <Box
         ref={activitiesRef}
         maxH="60vh"
@@ -178,41 +183,37 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
           )
         ))}
       </Box>
-      <Input
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Введите сообщение..."
-        isDisabled={isSending || isLoading}
-        bg="#FFFFFF"
-        borderColor="#E2E8F0"
-      />
-      <Button
-        colorScheme="blue"
-        onClick={handleSendMessage}
-        isLoading={isSending}
-        loadingText="Отправка..."
-      >
-        Отправить
-      </Button>
-      <FormControl>
-        <FormLabel>Загрузить документ</FormLabel>
+      <HStack spacing={2} align="stretch">
+        <IconButton
+          icon={<AttachmentIcon />}
+          onClick={() => document.getElementById('file-input').click()}
+          aria-label="Upload document"
+          isDisabled={isSending || isLoading}
+        />
         <Input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Введите сообщение..."
           isDisabled={isSending || isLoading}
           bg="#FFFFFF"
           borderColor="#E2E8F0"
         />
         <Button
-          colorScheme="teal"
-          onClick={handleUploadDocument}
-          mt={2}
-          isDisabled={!file}
+          colorScheme="blue"
+          onClick={handleSendMessage}
+          isLoading={isSending}
+          loadingText="Отправка..."
         >
-          Загрузить
+          Отправить
         </Button>
-      </FormControl>
+      </HStack>
+      <input
+        id="file-input"
+        type="file"
+        style={{ display: 'none' }}
+        onChange={(e) => setFile(e.target.files[0])}
+      />
     </VStack>
   );
 }

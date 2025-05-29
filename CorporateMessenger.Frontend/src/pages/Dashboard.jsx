@@ -8,6 +8,13 @@ import ChatList from '../features/chat/ChatList';
 import ChatActivity from '../features/chat/ChatActivity';
 import ChatAccessModal from '../features/chat/ChatAccessModal';
 
+// Utility function to get cookie value
+function getCookie(name) {
+  const fullCookieString = '; ' + document.cookie;
+  const splitCookie = fullCookieString.split('; ' + name + '=');
+  return splitCookie.length === 2 ? splitCookie.pop().split(';').shift() : null;
+}
+
 function Dashboard() {
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -15,7 +22,7 @@ function Dashboard() {
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [connection, setConnection] = useState(null);
   const toast = useToast();
-  const userId = localStorage.getItem('userId');
+  const userId = getCookie('UserId'); // Updated to use cookies instead of localStorage
 
   useEffect(() => {
     const fetchChats = async () => {

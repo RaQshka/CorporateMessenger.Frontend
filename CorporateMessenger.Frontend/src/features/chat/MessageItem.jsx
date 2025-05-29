@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Text,
@@ -23,16 +23,45 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { HamburgerIcon } from '@chakra-ui/icons';
-import { editMessage, deleteMessage, addReaction, removeReaction } from '../../services/api';
+import { editMessage, deleteMessage, addReaction, removeReaction, getUserInfo } from '../../services/api';
 
 function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
+  const [senderInfo, setSenderInfo] = useState({ firstName: '', lastName: '' });
   const toast = useToast();
   const isSender = message.senderId === userId;
   const canEdit = isSender;
   const canDelete = isSender || canDeleteAnyMessages;
 
+  // Загрузка информации о пользователе
+  useEffect(() => {
+    const fetchSenderInfo = async () => {
+      try {
+        const info = await getUserInfo(message.senderId);
+        setSenderInfo({ firstName: info.firstName, lastName: info.lastName });
+      } catch (error) {
+        console.error('Ошибка при получении информации о пользователе:', error);
+        setSenderInfo({ firstName: 'Неизвестно', lastName: '' });
+      }
+    };
+    fetchSenderInfo();
+  }, [message.senderId]);
+
+  // Группировка реакций
+  const groupReactions = (reactions) => {
+    const grouped = reactions.reduce((acc, reaction) => {
+      const type = reaction.reactionType;
+      if (!acc[type]) {
+        acc[type] = { type, count: 0 };
+      }
+      acc[type].count += 1;
+      return acc;
+    }, {});
+    return Object.values(grouped);
+  };
+
+  // Редактирование сообщения
   const handleEdit = async () => {
     if (!editContent.trim()) {
       toast({
@@ -66,6 +95,7 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
     }
   };
 
+  // Удаление сообщения
   const handleDelete = async () => {
     try {
       await deleteMessage(message.id);
@@ -88,13 +118,18 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
     }
   };
 
+  // Добавление/обновление реакции
   const handleAddReaction = async (reactionType) => {
     try {
+      const currentReaction = message.reactions.find((r) => r.userId === userId);
+      if (currentReaction) {
+        await removeReaction(message.id);
+      }
       await addReaction(message.id, { reactionType });
       onUpdate();
       toast({
         title: 'Успех',
-        description: 'Реакция добавлена',
+        description: 'Реакция обновлена',
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -102,7 +137,7 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
     } catch (err) {
       toast({
         title: 'Ошибка',
-        description: 'Не удалось добавить реакцию.',
+        description: 'Не удалось обновить реакцию.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -124,11 +159,12 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
         boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
       >
         <HStack justify="space-between" align="start">
+          <Text fontWeight="bold">{senderInfo.firstName} {senderInfo.lastName}</Text>
           <Menu>
             <MenuButton
               as={IconButton}
               icon={<HamburgerIcon />}
-              size="sm"
+              size="xs"
               variant="ghost"
               color="#7F8C8D"
               _hover={{ color: '#3498DB' }}
@@ -165,22 +201,28 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
               )}
             </MenuList>
           </Menu>
-          <Text fontWeight="bold">{message.senderName}</Text>
         </HStack>
         <Text>{message.isDeleted ? '[Удалено]' : message.content}</Text>
         <Text fontSize="sm" color="gray.200">
-          {new Date(message.sentAt).toLocaleString()}
+          {new Date(message.sentAt).toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })}
         </Text>
         {message.reactions && message.reactions.length > 0 && (
-          <HStack spacing={1} mt={1}>
-            {message.reactions.map((reaction, index) => (
+          <HStack spacing={2} mt={1}>
+            {groupReactions(message.reactions).map((reaction, index) => (
               <Text key={index} fontSize="sm">
-                {reaction === 'Like' && '👍'}
-                {reaction === 'Heart' && '❤️'}
-                {reaction === 'Sad' && '😢'}
-                {reaction === 'Happy' && '😊'}
-                {reaction === 'Cry' && '😭'}
-                {reaction === 'Laugh' && '😂'}
+                {reaction.type === 'Like' && '👍'}
+                {reaction.type === 'Heart' && '❤️'}
+                {reaction.type === 'Sad' && '😢'}
+                {reaction.type === 'Happy' && '😊'}
+                {reaction.type === 'Cry' && '😭'}
+                {reaction.type === 'Laugh' && '😂'} {reaction.count}
               </Text>
             ))}
           </HStack>

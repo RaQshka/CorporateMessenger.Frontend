@@ -14,6 +14,7 @@ import { getChatActivity, sendMessage, uploadDocument } from '../../services/api
 import MessageItem from './MessageItem';
 import DocumentItem from './DocumentItem';
 
+
 function ChatActivity({ chatId, userId, connection, userPermissions }) {
   const [activities, setActivities] = useState([]);
   const [skip, setSkip] = useState(0);
@@ -22,6 +23,8 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [file, setFile] = useState(null);
+  // Добавляем состояние для хранения ID сообщения, на которое отвечают
+  const [replyToMessageId, setReplyToMessageId] = useState(null);
   const activitiesRef = useRef(null);
   const toast = useToast();
 
@@ -73,7 +76,6 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
       };
     }
   }, [connection, chatId, skip]);
-
   const handleSendMessage = async () => {
     if (!message.trim()) {
       toast({
@@ -87,8 +89,10 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
     }
     setIsSending(true);
     try {
-      await sendMessage({ chatId, content: message });
+      // Передаем replyToMessageId, если оно есть
+      await sendMessage({ chatId, content: message, replyToMessageId });
       setMessage('');
+      setReplyToMessageId(null); // Сбрасываем после отправки
       fetchActivities(skip);
       activitiesRef.current.scrollTop = activitiesRef.current.scrollHeight;
     } catch (err) {
@@ -102,6 +106,11 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
     } finally {
       setIsSending(false);
     }
+  };
+
+  // Callback для обработки ответа
+  const handleReply = (messageId) => {
+    setReplyToMessageId(messageId);
   };
 
   const handleKeyDown = (e) => {
@@ -170,6 +179,7 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
               message={activity.data}
               userId={userId}
               onUpdate={() => fetchActivities(skip)}
+              onReply={handleReply} // Передаем callback в MessageItem
               canDeleteAnyMessages={canDeleteAnyMessages}
             />
           ) : (
@@ -183,6 +193,12 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
           )
         ))}
       </Box>
+      {/* Можно добавить визуальную индикацию ответа */}
+      {replyToMessageId && (
+        <Text fontSize="sm" color="gray.500">
+          Ответ на сообщение #{replyToMessageId}
+        </Text>
+      )}
       <HStack spacing={2} align="stretch">
         <IconButton
           icon={<AttachmentIcon />}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Text,
@@ -23,42 +23,27 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { HamburgerIcon } from '@chakra-ui/icons';
-import { editMessage, deleteMessage, addReaction, removeReaction, getUserInfo } from '../../services/api';
+import { editMessage, deleteMessage, addReaction, removeReaction } from '../../services/api';
 
-function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
+function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages, onReply }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
-  const [senderInfo, setSenderInfo] = useState({ firstName: '', lastName: '' });
   const toast = useToast();
-  const isSender = message.senderId === userId;
+  const isSender = message.sender.id === userId; // Предполагаем, что senderId доступен, иначе используйте логику проверки
   const canEdit = isSender;
   const canDelete = isSender || canDeleteAnyMessages;
 
-  // Загрузка информации о пользователе
-  useEffect(() => {
-    const fetchSenderInfo = async () => {
-      try {
-        const info = await getUserInfo(message.senderId);
-        setSenderInfo({ firstName: info.firstName, lastName: info.lastName });
-      } catch (error) {
-        console.error('Ошибка при получении информации о пользователе:', error);
-        setSenderInfo({ firstName: 'Неизвестно', lastName: '' });
-      }
-    };
-    fetchSenderInfo();
-  }, [message.senderId]);
-
-  // Группировка реакций
-  const groupReactions = (reactions) => {
-    const grouped = reactions.reduce((acc, reaction) => {
-      const type = reaction.reactionType;
-      if (!acc[type]) {
-        acc[type] = { type, count: 0 };
-      }
-      acc[type].count += 1;
-      return acc;
-    }, {});
-    return Object.values(grouped);
+  // Функция для получения эмодзи по типу реакции
+  const getEmoji = (reactionType) => {
+    switch (reactionType) {
+      case 0: return '👍'; // Like
+      case 1: return '❤️'; // Heart
+      case 2: return '😢'; // Sad
+      case 3: return '😊'; // Happy
+      case 4: return '😭'; // Cry
+      case 5: return '😂'; // Laugh
+      default: return '';
+    }
   };
 
   // Редактирование сообщения
@@ -118,32 +103,47 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
     }
   };
 
-  // Добавление/обновление реакции
-  const handleAddReaction = async (reactionType) => {
-    try {
-      const currentReaction = message.reactions.find((r) => r.userId === userId);
-      if (currentReaction) {
-        await removeReaction(message.id);
-      }
-      await addReaction(message.id, { reactionType });
-      onUpdate();
-      toast({
-        title: 'Успех',
-        description: 'Реакция обновлена',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err) {
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось обновить реакцию.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+// Новая функция для преобразования числа в строку
+const getReactionString = (type) => {
+  switch (type) {
+    case 1: return 'Like';
+    case 2: return 'Heart';
+    case 3: return 'Sad';
+    case 4: return 'Happy';
+    case 5: return 'Cry';
+    case 6: return 'Laugh';
+    default: return '';
+  }
+};
+
+// Обновленная функция handleAddReaction
+const handleAddReaction = async (reactionType) => {
+  try {
+    const reactionString = getReactionString(reactionType); // Преобразуем число в строку
+    if (!reactionString) {
+      throw new Error('Некорректный тип реакции');
     }
-  };
+    await addReaction(message.id, { reactionType: reactionString }); // Передаем строку
+    
+    onUpdate();
+    toast({
+      title: 'Успех',
+      description: 'Реакция обновлена',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+  } catch (err) {
+    console.error('Ошибка при обновлении реакции:', err); // Добавляем логирование для диагностики
+    toast({
+      title: 'Ошибка',
+      description: 'Не удалось обновить реакцию.',
+      status: 'error',
+      duration: 5000,
+      isClosable: true,
+    });
+  }
+};
 
   return (
     <>
@@ -159,7 +159,9 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
         boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
       >
         <HStack justify="space-between" align="start">
-          <Text fontWeight="bold">{senderInfo.firstName} {senderInfo.lastName}</Text>
+          <Text fontWeight="bold">
+            {message.sender.firstName} {message.sender.lastName}
+          </Text>
           <Menu>
             <MenuButton
               as={IconButton}
@@ -168,27 +170,31 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
               variant="ghost"
               color="#7F8C8D"
               _hover={{ color: '#3498DB' }}
-            />
+                        />
             <MenuList bg="#FFFFFF" boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)" w="200px">
-              <MenuItem onClick={() => handleAddReaction('Like')} color="#2C3E50" _hover={{ color: '#3498DB' }}>
+              <MenuItem onClick={() => handleAddReaction(1)} color="#2C3E50" _hover={{ color: '#3498DB' }}>
                 Like 👍
               </MenuItem>
-              <MenuItem onClick={() => handleAddReaction('Heart')} color="#2C3E50" _hover={{ color: '#3498DB' }}>
+              <MenuItem onClick={() => handleAddReaction(2)} color="#2C3E50" _hover={{ color: '#3498DB' }}>
                 Heart ❤️
               </MenuItem>
-              <MenuItem onClick={() => handleAddReaction('Sad')} color="#2C3E50" _hover={{ color: '#3498DB' }}>
+              <MenuItem onClick={() => handleAddReaction(3)} color="#2C3E50" _hover={{ color: '#3498DB' }}>
                 Sad 😢
               </MenuItem>
-              <MenuItem onClick={() => handleAddReaction('Happy')} color="#2C3E50" _hover={{ color: '#3498DB' }}>
+              <MenuItem onClick={() => handleAddReaction(4)} color="#2C3E50" _hover={{ color: '#3498DB' }}>
                 Happy 😊
               </MenuItem>
-              <MenuItem onClick={() => handleAddReaction('Cry')} color="#2C3E50" _hover={{ color: '#3498DB' }}>
+              <MenuItem onClick={() => handleAddReaction(5)} color="#2C3E50" _hover={{ color: '#3498DB' }}>
                 Cry 😭
               </MenuItem>
-              <MenuItem onClick={() => handleAddReaction('Laugh')} color="#2C3E50" _hover={{ color: '#3498DB' }}>
+              <MenuItem onClick={() => handleAddReaction(6)} color="#2C3E50" _hover={{ color: '#3498DB' }}>
                 Laugh 😂
               </MenuItem>
               <MenuDivider />
+              {/* Добавляем опцию "Ответить" */}
+              <MenuItem onClick={() => onReply(message.id)} color="#2C3E50" _hover={{ color: '#3498DB' }}>
+                Ответить 💬
+              </MenuItem>
               {canEdit && (
                 <MenuItem onClick={() => setIsEditing(true)} color="#2C3E50" _hover={{ color: '#3498DB' }}>
                   Редактировать ✏️
@@ -215,16 +221,13 @@ function MessageItem({ message, userId, onUpdate, canDeleteAnyMessages }) {
         </Text>
         {message.reactions && message.reactions.length > 0 && (
           <HStack spacing={2} mt={1}>
-            {groupReactions(message.reactions).map((reaction, index) => (
-              <Text key={index} fontSize="sm">
-                {reaction.type === 'Like' && '👍'}
-                {reaction.type === 'Heart' && '❤️'}
-                {reaction.type === 'Sad' && '😢'}
-                {reaction.type === 'Happy' && '😊'}
-                {reaction.type === 'Cry' && '😭'}
-                {reaction.type === 'Laugh' && '😂'} {reaction.count}
-              </Text>
-            ))}
+            {message.reactions
+              .filter((reaction) => reaction.reactionCount > 0)
+              .map((reaction, index) => (
+                <Text key={index} fontSize="xs" color="gray.300">
+                  {reaction.reactionCount} {getEmoji(reaction.reactionType)}
+                </Text>
+              ))}
           </HStack>
         )}
       </Box>

@@ -12,15 +12,14 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { HamburgerIcon, AttachmentIcon } from '@chakra-ui/icons';
-import { deleteDocument, getUserInfo } from '../../services/api';
+import { deleteDocument } from '../../services/api';
 import DocumentAccessModal from './DocumentAccessModal';
 
 function DocumentItem({ document, userId, onUpdate, canDeleteAnyDocuments }) {
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const toast = useToast();
-  const isSender = document.senderId === userId;
+  const isSender = document.uploaderId === userId; // Используем uploaderId, так как sender отсутствует
   const canDelete = isSender || canDeleteAnyDocuments;
-  const senderInfo = getUserInfo(document.senderId);
 
   const handleDelete = async () => {
     try {
@@ -60,14 +59,19 @@ function DocumentItem({ document, userId, onUpdate, canDeleteAnyDocuments }) {
         <HStack justify="space-between" align="start">
           <HStack>
             <AttachmentIcon />
-            <Text fontWeight="bold">{senderInfo.firstName} {senderInfo.lastName}</Text>
+            {/* В текущем API нет sender, используем заглушку */}
+            <Text fontWeight="bold">
+              {document.sender
+                ? `${document.sender.firstName} ${document.sender.lastName}`
+                : 'Неизвестно'}
+            </Text>
             <Text fontWeight="bold">{document.fileName}</Text>
           </HStack>
           <Menu>
             <MenuButton
               as={IconButton}
               icon={<HamburgerIcon />}
-              size="xs" // Smaller size
+              size="xs"
               variant="ghost"
               color="#7F8C8D"
               _hover={{ color: '#3498DB' }}
@@ -88,15 +92,15 @@ function DocumentItem({ document, userId, onUpdate, canDeleteAnyDocuments }) {
           </Menu>
         </HStack>
         <Text fontSize="sm" color="gray.200">
-        Дата: {new Date(document.uploadedAt).toLocaleString('ru-RU', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })}
-      </Text>
+          Дата: {new Date(document.uploadedAt).toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })}
+        </Text>
         <Button as="a" href={`/api/documents/${document.id}/download`} colorScheme="teal" size="sm" mt={2}>
           Скачать
         </Button>

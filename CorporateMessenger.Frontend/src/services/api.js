@@ -25,7 +25,13 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const response = await api.post('/auth/refresh');
+        const response = await api.post('/auth/refresh'); 
+        if(response.status === 401){
+          localStorage.removeItem('token');
+          window.location.href = '/login'; // Перенаправление на логин
+          return Promise.reject(refreshError);
+        }
+
         const newToken = response.data.accessToken;
         localStorage.setItem('token', newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;

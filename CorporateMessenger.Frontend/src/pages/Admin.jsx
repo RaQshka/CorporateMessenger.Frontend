@@ -1,15 +1,37 @@
 import { useState, useEffect } from 'react';
-import { Box, Heading, Text, VStack, Button, useToast, Table, Thead, Tbody, Tr, Th, Td } from '@chakra-ui/react';
-import { getUnconfirmedUsers, confirmAccount, deleteUser } from '../services/api';
+import {
+  Box,
+  Heading,
+  Text,
+  VStack,
+  Button,
+  useToast,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  FormControl,
+  FormLabel,
+  Input,
+  Select,
+  HStack,
+} from '@chakra-ui/react';
+import { getUnconfirmedUsers, confirmAccount, deleteUser, getUsers, exportUserAuditLogs } from '../services/api';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 function Admin() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState([]); // Неподтвержденные пользователи
+  const [allUsers, setAllUsers] = useState([]); // Все пользователи для экспорта логов
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState(''); // Для экспорта логов
+  const [days, setDays] = useState(''); // Количество дней для экспорта логов
   const toast = useToast();
 
+  // Загрузка неподтвержденных пользователей
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -20,10 +42,11 @@ function Admin() {
           throw new Error('Неверный формат данных');
         }
       } catch (err) {
-        setError('Не удалось загрузить пользователей');
+        const serverError = err.response?.data?.message || 'Не удалось загрузить пользователей';
+        setError(serverError);
         toast({
           title: 'Ошибка',
-          description: 'Не удалось загрузить список пользователей.',
+          description: serverError,
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -32,13 +55,36 @@ function Admin() {
         setIsLoading(false);
       }
     };
+
+    // Загрузка всех пользователей для выпадающего списка
+    const fetchAllUsers = async () => {
+      try {
+        const data = await getUsers();
+        if (Array.isArray(data)) {
+          setAllUsers(data);
+        } else {
+          throw new Error('Неверный формат данных');
+        }
+      } catch (err) {
+        toast({
+          title: 'Ошибка',
+          description: 'Не удалось загрузить список всех пользователей.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    };
+
     fetchUsers();
+    fetchAllUsers();
   }, [toast]);
 
+  // Подтверждение аккаунта
   const handleConfirm = async (userId) => {
     try {
       await confirmAccount({ userId });
-      setUsers(users.filter((u) => u.userId !== userId));
+      setUsers(users.filter((u) => u.id !== userId));
       toast({
         title: 'Успех',
         description: 'Аккаунт подтвержден',
@@ -47,9 +93,10 @@ function Admin() {
         isClosable: true,
       });
     } catch (err) {
+      const serverError = err.response?.data?.message || 'Не удалось подтвердить аккаунт';
       toast({
         title: 'Ошибка',
-        description: 'Не удалось подтвердить аккаунт.',
+        description: serverError,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -57,10 +104,11 @@ function Admin() {
     }
   };
 
+  // Удаление аккаунта
   const handleDelete = async (userId) => {
     try {
       await deleteUser({ userId });
-      setUsers(users.filter((u) => u.userId !== userId));
+      setUsers(users.filter((u) => u.id !== userId));
       toast({
         title: 'Успех',
         description: 'Пользователь удален',
@@ -69,9 +117,51 @@ function Admin() {
         isClosable: true,
       });
     } catch (err) {
+      const serverError = err.response?.data?.message || 'Не удалось удалить пользователя';
       toast({
         title: 'Ошибка',
-        description: 'Не удалось удалить пользователя.',
+        description: serverError,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Экспорт логов
+  const handleExportLogs = async () => {
+    if (!selectedUserId || !days) {
+      toast({
+        title: 'Ошибка',
+        description: 'Выберите пользователя и укажите количество дней',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      const blob = await exportUserAuditLogs(selectedUserId, days);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `user_logs_${selectedUserId}_${days}_days.csv`); // Имя файла
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast({
+        title: 'Успех',
+        description: 'Логи успешно экспортированы',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err) {
+      const serverError = err.response?.data?.message || 'Не удалось экспортировать логи';
+      toast({
+        title: 'Ошибка',
+        description: serverError,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -80,20 +170,22 @@ function Admin() {
   };
 
   return (
-    <Box minH="100vh" display="flex" flexDirection="column">
+    <Box minH="100vh" display="flex" flexDirection="column" bg="gray.50">
       <Header />
-      <Box flex="1" p={6}>
-        <Heading as="h2" mb={4}>Администрирование</Heading>
-        <Text mb={4}>Неподтвержденные пользователи:</Text>
+      <Box flex="1" p={6} maxW="lg" mx="auto">
+        <Heading as="h2" mb={4} color="blue.600">Администрирование</Heading>
+
+        {/* Секция неподтвержденных пользователей */}
+        <Text mb={4} fontSize="lg">Неподтвержденные пользователи:</Text>
         {isLoading ? (
-          <Text>Загрузка...</Text>
+          <Text textAlign="center">Загрузка...</Text>
         ) : error ? (
-          <Text color="red.500">{error}</Text>
+          <Text color="red.500" textAlign="center">{error}</Text>
         ) : users.length === 0 ? (
-          <Text>Нет неподтвержденных пользователей</Text>
+          <Text textAlign="center">Нет неподтвержденных пользователей</Text>
         ) : (
-          <Table variant="simple">
-            <Thead>
+          <Table variant="simple" bg="white" borderRadius="md" boxShadow="md">
+            <Thead bg="blue.50">
               <Tr>
                 <Th>Имя</Th>
                 <Th>Email</Th>
@@ -102,14 +194,27 @@ function Admin() {
             </Thead>
             <Tbody>
               {users.map((user) => (
-                <Tr key={user.userId}>
+                <Tr key={user.id}>
                   <Td>{user.name}</Td>
                   <Td>{user.email}</Td>
                   <Td>
-                    <Button colorScheme="green" size="sm" mr={2} onClick={() => handleConfirm(user.userId)}>
+                    <Button
+                      colorScheme="green"
+                      size="sm"
+                      mr={2}
+                      onClick={() => handleConfirm(user.id)}
+                      _hover={{ transform: 'scale(1.05)' }}
+                      transition="all 0.2s"
+                    >
                       Подтвердить
                     </Button>
-                    <Button colorScheme="red" size="sm" onClick={() => handleDelete(user.userId)}>
+                    <Button
+                      colorScheme="red"
+                      size="sm"
+                      onClick={() => handleDelete(user.id)}
+                      _hover={{ transform: 'scale(1.05)' }}
+                      transition="all 0.2s"
+                    >
                       Удалить
                     </Button>
                   </Td>
@@ -118,6 +223,50 @@ function Admin() {
             </Tbody>
           </Table>
         )}
+
+        {/* Секция экспорта логов */}
+        <Box mt={8} p={4} bg="white" borderRadius="md" boxShadow="md">
+          <Text mb={4} fontSize="lg">Экспорт логов пользователя:</Text>
+          <VStack spacing={4}>
+            <FormControl>
+              <FormLabel>Выберите пользователя</FormLabel>
+              <Select
+                placeholder="Выберите пользователя"
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                borderColor="blue.200"
+                _hover={{ borderColor: 'blue.300' }}
+                focusBorderColor="blue.500"
+              >
+                {allUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.firstName} {user.lastName} {user.email}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Количество дней</FormLabel>
+              <Input
+                type="number"
+                placeholder="Введите количество дней"
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                borderColor="blue.200"
+                _hover={{ borderColor: 'blue.300' }}
+                focusBorderColor="blue.500"
+              />
+            </FormControl>
+            <Button
+              colorScheme="blue"
+              onClick={handleExportLogs}
+              _hover={{ transform: 'scale(1.05)' }}
+              transition="all 0.2s"
+            >
+              Экспортировать логи
+            </Button>
+          </VStack>
+        </Box>
       </Box>
       <Footer />
     </Box>

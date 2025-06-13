@@ -40,3 +40,15 @@
 .read-the-docs {
   color: #888;
 }
+
+
+/* Стало: стили светлой темы */
+body {
+  background-color: #fff;
+  color: #000;
+}
+
+button {
+  background-color: #f0f0f0;
+  color: #000;
+}

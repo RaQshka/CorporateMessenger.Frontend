@@ -72,6 +72,10 @@ function Header() {
               <Link as={RouterLink} to="/admin" _hover={{ textDecoration: 'underline' }}>
                 Админ
               </Link>
+              <Link as={RouterLink} to="/secure-chat" _hover={{ textDecoration: 'underline' }}>
+                Защищенный чат
+              </Link>
+              
               <Menu>
                 <MenuButton as={Button} variant="ghost" p={0}>
                   <Avatar size="sm" />

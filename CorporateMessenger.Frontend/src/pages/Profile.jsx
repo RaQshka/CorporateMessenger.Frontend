@@ -16,10 +16,11 @@ export function Profile() {
         const data = await getProfile();
         setProfile(data);
       } catch (err) {
-        setError('Не удалось загрузить профиль');
+        const serverError = err.response?.data?.message || 'Не удалось загрузить профиль';
+        setError(serverError);
         toast({
           title: 'Ошибка',
-          description: 'Не удалось загрузить данные профиля.',
+          description: serverError,
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -31,14 +32,14 @@ export function Profile() {
     fetchProfile();
   }, [toast]);
 
-  if (isLoading) return <Text>Загрузка...</Text>;
-  if (error) return <Text color="red.500">{error}</Text>;
+  if (isLoading) return <Text textAlign="center">Загрузка...</Text>;
+  if (error) return <Text color="red.500" textAlign="center">{error}</Text>;
 
   return (
-    <Box minH="100vh" display="flex" flexDirection="column">
+    <Box minH="100vh" display="flex" flexDirection="column" bg="gray.50">
       <Header />
-      <Box flex="1" p={6}>
-        <Heading as="h2" mb={4}>Профиль пользователя</Heading>
+      <Box flex="1" p={6} maxW="md" mx="auto" mt={10} borderWidth={1} borderRadius="lg" boxShadow="lg" bg="white">
+        <Heading as="h2" mb={4} color="blue.600">Профиль пользователя</Heading>
         <VStack spacing={4} align="start">
           <Text><strong>Имя:</strong> {profile.name}</Text>
           <Text><strong>Email:</strong> {profile.email}</Text>

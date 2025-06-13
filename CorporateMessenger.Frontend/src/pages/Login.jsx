@@ -52,10 +52,11 @@ export function Login() {
         });
       }
     } catch (err) {
-      setError('Произошла ошибка при входе');
+      const serverError = err.response?.data?.message || 'Произошла ошибка при входе';
+      setError(serverError);
       toast({
         title: 'Ошибка',
-        description: 'Не удалось войти. Проверьте данные и попробуйте снова.',
+        description: serverError,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -66,12 +67,12 @@ export function Login() {
   };
 
   return (
-    <Box minH="100vh" display="flex" flexDirection="column">
+    <Box minH="100vh" display="flex" flexDirection="column" bg="gray.50">
       <Header />
-      <Box flex="1" maxW="md" mx="auto" mt={10} p={6} borderWidth={1} borderRadius="lg">
+      <Box flex="1" maxW="md" mx="auto" mt={10} p={6} borderWidth={1} borderRadius="lg" boxShadow="lg" bg="white">
         <VStack spacing={4}>
-          <Heading as="h2" size="lg">Вход</Heading>
-          {error && <Text color="red.500">{error}</Text>}
+          <Heading as="h2" size="lg" color="blue.600">Вход</Heading>
+          {error && <Text color="red.500" textAlign="center">{error}</Text>}
           <FormControl isRequired>
             <FormLabel>Имя пользователя</FormLabel>
             <Input
@@ -79,6 +80,9 @@ export function Login() {
               onChange={(e) => setUsername(e.target.value)}
               isDisabled={isLoading}
               placeholder="Введите имя пользователя"
+              borderColor="blue.200"
+              _hover={{ borderColor: 'blue.300' }}
+              focusBorderColor="blue.500"
             />
           </FormControl>
           <FormControl isRequired>
@@ -89,6 +93,9 @@ export function Login() {
               onChange={(e) => setPassword(e.target.value)}
               isDisabled={isLoading}
               placeholder="Введите пароль"
+              borderColor="blue.200"
+              _hover={{ borderColor: 'blue.300' }}
+              focusBorderColor="blue.500"
             />
           </FormControl>
           <Button
@@ -97,12 +104,14 @@ export function Login() {
             width="full"
             isLoading={isLoading}
             loadingText="Вход..."
+            _hover={{ transform: 'scale(1.05)' }}
+            transition="all 0.2s"
           >
             Войти
           </Button>
           <Text>
             Нет аккаунта?{' '}
-            <Text as={RouterLink} to="/register" color="blue.500">
+            <Text as={RouterLink} to="/register" color="blue.500" _hover={{ textDecoration: 'underline' }}>
               Зарегистрироваться
             </Text>
           </Text>

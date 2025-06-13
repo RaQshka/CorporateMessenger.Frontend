@@ -78,10 +78,11 @@ export function Register() {
         });
       }
     } catch (err) {
-      setError('Произошла ошибка при регистрации');
+      const serverError = err.response?.data?.message || 'Произошла ошибка при регистрации';
+      setError(serverError);
       toast({
         title: 'Ошибка',
-        description: 'Не удалось зарегистрироваться. Попробуйте позже.',
+        description: serverError,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -92,12 +93,12 @@ export function Register() {
   };
 
   return (
-    <Box minH="100vh" display="flex" flexDirection="column">
+    <Box minH="100vh" display="flex" flexDirection="column" bg="gray.50">
       <Header />
-      <Box flex="1" maxW="md" mx="auto" mt={10} p={6} borderWidth={1} borderRadius="lg">
+      <Box flex="1" maxW="md" mx="auto" mt={10} p={6} borderWidth={1} borderRadius="lg" boxShadow="lg" bg="white">
         <VStack spacing={4}>
-          <Heading as="h2" size="lg">Регистрация</Heading>
-          {error && <Text color="red.500">{error}</Text>}
+          <Heading as="h2" size="lg" color="blue.600">Регистрация</Heading>
+          {error && <Text color="red.500" textAlign="center">{error}</Text>}
           <FormControl isRequired>
             <FormLabel>Имя пользователя</FormLabel>
             <Input
@@ -105,6 +106,9 @@ export function Register() {
               onChange={(e) => setUsername(e.target.value)}
               isDisabled={isLoading}
               placeholder="Введите имя пользователя"
+              borderColor="blue.200"
+              _hover={{ borderColor: 'blue.300' }}
+              focusBorderColor="blue.500"
             />
           </FormControl>
           <FormControl isRequired>
@@ -115,6 +119,9 @@ export function Register() {
               onChange={(e) => setEmail(e.target.value)}
               isDisabled={isLoading}
               placeholder="Введите email"
+              borderColor="blue.200"
+              _hover={{ borderColor: 'blue.300' }}
+              focusBorderColor="blue.500"
             />
           </FormControl>
           <FormControl isRequired>
@@ -125,6 +132,9 @@ export function Register() {
               onChange={(e) => setPassword(e.target.value)}
               isDisabled={isLoading}
               placeholder="Введите пароль"
+              borderColor="blue.200"
+              _hover={{ borderColor: 'blue.300' }}
+              focusBorderColor="blue.500"
             />
           </FormControl>
           <FormControl isRequired>
@@ -134,6 +144,9 @@ export function Register() {
               onChange={(e) => setCorporateKey(e.target.value)}
               isDisabled={isLoading}
               placeholder="Введите корпоративный ключ"
+              borderColor="blue.200"
+              _hover={{ borderColor: 'blue.300' }}
+              focusBorderColor="blue.500"
             />
           </FormControl>
           <FormControl isRequired>
@@ -143,6 +156,9 @@ export function Register() {
               onChange={(e) => setFirstName(e.target.value)}
               isDisabled={isLoading}
               placeholder="Введите имя"
+              borderColor="blue.200"
+              _hover={{ borderColor: 'blue.300' }}
+              focusBorderColor="blue.500"
             />
           </FormControl>
           <FormControl isRequired>
@@ -152,6 +168,9 @@ export function Register() {
               onChange={(e) => setLastName(e.target.value)}
               isDisabled={isLoading}
               placeholder="Введите фамилию"
+              borderColor="blue.200"
+              _hover={{ borderColor: 'blue.300' }}
+              focusBorderColor="blue.500"
             />
           </FormControl>
           <Button
@@ -160,12 +179,14 @@ export function Register() {
             width="full"
             isLoading={isLoading}
             loadingText="Регистрация..."
+            _hover={{ transform: 'scale(1.05)' }}
+            transition="all 0.2s"
           >
             Зарегистрироваться
           </Button>
           <Text>
             Уже есть аккаунт?{' '}
-            <Text as={RouterLink} to="/login" color="blue.500">
+            <Text as={RouterLink} to="/login" color="blue.500" _hover={{ textDecoration: 'underline' }}>
               Войти
             </Text>
           </Text>

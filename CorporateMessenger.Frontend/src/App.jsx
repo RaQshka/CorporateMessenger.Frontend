@@ -11,6 +11,9 @@ import PrivateRoute from './components/PrivateRoute';
 import { Box, Heading, Text } from '@chakra-ui/react';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import SecureChatPage from './pages/SecureChatPage';
+
+
 
 function NotFound() {
   return (
@@ -33,6 +36,7 @@ function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/secure-chat" element={<PrivateRoute><SecureChatPage /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/chats" element={<PrivateRoute><ChatList /></PrivateRoute>} />
         <Route path="/chat/:chatId" element={<PrivateRoute><Chat /></PrivateRoute>} />

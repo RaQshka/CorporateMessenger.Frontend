@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Input,
+  InputGroup,
+  InputLeftElement,
   Table,
   Thead,
   Tbody,
@@ -11,8 +13,12 @@ import {
   Button,
   Text,
   VStack,
+  HStack,
   useToast,
+  Icon,
+  Spinner,
 } from '@chakra-ui/react';
+import { SearchIcon, CheckIcon } from '@chakra-ui/icons';
 import { getUsers } from '../../services/api';
 
 function SecureChatUserSelect({ onSelectUser, selectedUser }) {
@@ -52,7 +58,11 @@ function SecureChatUserSelect({ onSelectUser, selectedUser }) {
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
-      fetchUsers(searchText);
+      if (searchText.length >= 2) {
+        fetchUsers(searchText);
+      } else {
+        setUsers([]);
+      }
     }, 300);
     return () => clearTimeout(delayDebounce);
   }, [searchText]);
@@ -67,69 +77,132 @@ function SecureChatUserSelect({ onSelectUser, selectedUser }) {
     onSelectUser(userData);
     setSearchText('');
     setUsers([]);
-    inputRef.current?.focus();
+    // Восстанавливаем фокус после выбора пользователя
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
 
   return (
-    <Box p={4} bg="white" borderRadius="md" boxShadow="md" maxW="lg" color="light">
-      <VStack spacing={4}>
+    <Box 
+      p={4} 
+      bg="white" 
+      borderRadius="lg" 
+      boxShadow="lg"
+      border="1px solid"
+      borderColor="gray.200"
+      maxW="full"
+    >
+      <VStack spacing={4} align="stretch">
+        {/* Отображение выбранного пользователя */}
         {selectedUser && (
-          <Text color="black">
-            Выбран: {selectedUser.firstName} {selectedUser.lastName}
+          <Box
+            p={3}
+            bg="green.50"
+            borderRadius="md"
+            border="1px solid"
+            borderColor="green.200"
+          >
+            <HStack justify="space-between">
+              <Text fontWeight="medium" color="green.700">
+                ✓ Выбран: {selectedUser.firstName} {selectedUser.lastName}
+              </Text>
+              <Icon as={CheckIcon} color="green.500" />
+            </HStack>
+          </Box>
+        )}
+        
+        {/* Поле поиска */}
+        <InputGroup>
+          <InputLeftElement pointerEvents="none">
+            <SearchIcon color="gray.400" />
+          </InputLeftElement>
+          <Input
+            ref={inputRef}
+            placeholder="Поиск по имени или фамилии (мин. 2 символа)"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            isDisabled={isLoading}
+            bg="white"
+            borderColor="gray.300"
+            _hover={{ borderColor: 'blue.400' }}
+            focusBorderColor="blue.500"
+            size="md"
+            autoComplete="off"
+          />
+        </InputGroup>
+
+        {/* Сообщения о состоянии */}
+        {error && (
+          <Text color="red.500" textAlign="center" fontSize="sm" fontStyle="italic">
+            {error}
           </Text>
         )}
-        <Input
-          ref={inputRef}
-          placeholder="Поиск по имени или фамилии (мин. 2 символа)"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          isDisabled={isLoading}
-          bg="lignt"
-          borderColor="white"
-          _hover={{ borderColor: 'gray.500' }}
-          focusBorderColor="blue.500"
-        />
-        {error && <Text color="red.400" textAlign="center">{error}</Text>}
+        
         {isLoading ? (
-          <Text textAlign="center">Загрузка...</Text>
+          <Box textAlign="center" py={4}>
+            <Spinner size="md" color="blue.500" />
+            <Text mt={2} color="gray.500" fontSize="sm">Загрузка...</Text>
+          </Box>
         ) : users.length === 0 && searchText.length >= 2 ? (
-          <Text textAlign="center">Пользователи не найдены</Text>
+          <Text textAlign="center" color="gray.500" fontSize="sm" py={4}>
+            Пользователи не найдены
+          </Text>
         ) : users.length === 0 ? (
-          <Text textAlign="center">Введите запрос для поиска</Text>
+          <Text textAlign="center" color="gray.400" fontSize="sm" py={4}>
+            Введите минимум 2 символа для поиска
+          </Text>
         ) : (
-          <Table variant="simple" size="sm">
-            <Thead bg="white">
-              <Tr>
-                <Th color="black">Имя</Th>
-                <Th color="black">Фамилия</Th>
-                <Th color="black">Email</Th>
-                <Th color="black">Действия</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {users.map((user) => (
-                <Tr key={user.userId || user.id}>
-                  <Td>{user.firstName || 'N/A'}</Td>
-                  <Td>{user.lastName || 'N/A'}</Td>
-                  <Td>{user.email}</Td>
-                  <Td>
-                    <Button
-                      size="sm"
-                      colorScheme="blue"
-                      onClick={() => handleSelectUser(user)}
-                      _hover={{ transform: 'scale(1.05)' }}
-                      transition="all 0.2s"
-                      
-                      bg="blue.600"
-                      _disabled={{ bg: 'gray.600', cursor: 'not-allowed' }}
-                    >
-                      {selectedUser?.id === (user.userId || user.id) ? 'Выбрано' : 'Выбрать'}
-                    </Button>
-                  </Td>
+          /* Таблица результатов */
+          <Box
+            maxH="300px"
+            overflowY="auto"
+            borderWidth="1px"
+            borderRadius="md"
+            borderColor="gray.200"
+          >
+            <Table variant="simple" size="sm">
+              <Thead bg="gray.50" position="sticky" top={0}>
+                <Tr>
+                  <Th color="gray.600" fontWeight="semibold">Имя</Th>
+                  <Th color="gray.600" fontWeight="semibold">Фамилия</Th>
+                  <Th color="gray.600" fontWeight="semibold">Email</Th>
+                  <Th color="gray.600" fontWeight="semibold" textAlign="right">Действия</Th>
                 </Tr>
-              ))}
-            </Tbody>
-          </Table>
+              </Thead>
+              <Tbody>
+                {users.map((user) => {
+                  const isSelected = selectedUser?.id === (user.userId || user.id);
+                  return (
+                    <Tr 
+                      key={user.userId || user.id}
+                      _hover={{ bg: isSelected ? 'green.50' : 'gray.50' }}
+                      bg={isSelected ? 'green.50' : 'white'}
+                    >
+                      <Td>{user.firstName || 'N/A'}</Td>
+                      <Td>{user.lastName || 'N/A'}</Td>
+                      <Td color="gray.600">{user.email}</Td>
+                      <Td textAlign="right">
+                        <Button
+                          size="sm"
+                          colorScheme={isSelected ? 'green' : 'blue'}
+                          onClick={() => handleSelectUser(user)}
+                          _hover={{ 
+                            transform: isSelected ? 'none' : 'scale(1.05)',
+                            shadow: isSelected ? 'none' : 'md'
+                          }}
+                          transition="all 0.2s"
+                          disabled={isSelected}
+                        >
+                          {isSelected ? 'Выбрано' : 'Выбрать'}
+                        </Button>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </Box>
         )}
       </VStack>
     </Box>

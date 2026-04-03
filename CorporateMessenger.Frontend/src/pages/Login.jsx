@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Button, FormControl, FormLabel, Input, VStack, Text, Heading, useToast } from '@chakra-ui/react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { loginUser } from '../services/api';
+import { loginUser, getProfile } from '../services/api';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -12,6 +12,22 @@ export function Login() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const toast = useToast();
+
+  // Проверяем, авторизован ли пользователь при загрузке страницы
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      getProfile()
+        .then(() => {
+          // Если профиль получен успешно, перенаправляем на dashboard
+          navigate('/dashboard');
+        })
+        .catch(() => {
+          // Если токен невалиден, удаляем его
+          localStorage.removeItem('token');
+        });
+    }
+  }, [navigate]);
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {

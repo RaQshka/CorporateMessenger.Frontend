@@ -1,5 +1,22 @@
 import axios from 'axios';
 
+// Глобальный счетчик попыток рефреша токена
+let refreshAttempts = 0;
+const MAX_REFRESH_ATTEMPTS = 5;
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 const api = axios.create({
   baseURL: 'http://localhost:5056/api',
   withCredentials: true,
@@ -22,26 +39,71 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    
+    // Если ошибка не 401 или это уже повторная попытка после рефреша
+    if (error.response?.status !== 401) {
+      return Promise.reject(error);
+    }
+    
+    // Не пытаемся рефрешить для эндпоинтов аутентификации
     if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url.includes('/auth/login') &&
-      !originalRequest.url.includes('/auth/register')
+      originalRequest.url.includes('/auth/login') ||
+      originalRequest.url.includes('/auth/register') ||
+      originalRequest.url.includes('/auth/refresh')
     ) {
-      originalRequest._retry = true;
+      localStorage.removeItem('token');
+      refreshAttempts = 0;
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+    
+    // Если превышен лимит попыток
+    if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
+      localStorage.removeItem('token');
+      refreshAttempts = 0;
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+    
+    // Если уже идет процесс рефреша, ставим запрос в очередь
+    if (isRefreshing) {
       try {
-        const response = await api.post('/auth/refresh');
-        const newToken = response.data.accessToken;
-        localStorage.setItem('token', newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        const token = await new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        });
+        originalRequest.headers.Authorization = `Bearer ${token}`;
         return api(originalRequest);
-      } catch (refreshError) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
+      } catch (err) {
+        return Promise.reject(err);
       }
     }
-    return Promise.reject(error);
+    
+    // Начинаем процесс рефреша
+    isRefreshing = true;
+    refreshAttempts += 1;
+    
+    try {
+      const response = await api.post('/auth/refresh');
+      const newToken = response.data.accessToken;
+      localStorage.setItem('token', newToken);
+      
+      // Сбрасываем счетчик при успешном рефреше
+      refreshAttempts = 0;
+      
+      // Обрабатываем очередь запросов
+      processQueue(null, newToken);
+      
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      return api(originalRequest);
+    } catch (refreshError) {
+      processQueue(refreshError, null);
+      localStorage.removeItem('token');
+      refreshAttempts = 0;
+      window.location.href = '/login';
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
 

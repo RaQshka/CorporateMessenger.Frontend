@@ -147,7 +147,7 @@ function ChatSettingsModal({ isOpen, onClose, chatId, userId }) {
     } catch (err) {
       toast({
         title: 'Ошибка',
-        description: `Не удалось обновить права доступа: ${err.response?.data?.message || err.message}`,
+        description: `Не удалось обновить права доступа: ${err.response?.data.error || err.message}`,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -173,7 +173,7 @@ function ChatSettingsModal({ isOpen, onClose, chatId, userId }) {
     } catch (err) {
       toast({
         title: 'Ошибка',
-        description: `Не удалось удалить участника: ${err.response?.data?.message || err.message}`,
+        description: `Не удалось удалить участника: ${err.response?.data.error || err.message}`,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -209,7 +209,7 @@ function ChatSettingsModal({ isOpen, onClose, chatId, userId }) {
     } catch (err) {
       toast({
         title: 'Ошибка',
-        description: `Не удалось добавить участника: ${err.response?.data?.message || err}`,
+        description: `Не удалось добавить участника. ${err.response?.data.error || err}`,
         status: 'error',
         duration: 5000,
         isClosable: true,

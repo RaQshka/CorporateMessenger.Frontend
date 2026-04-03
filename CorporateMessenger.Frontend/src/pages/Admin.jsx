@@ -1,48 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  Button,
-  useToast,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  HStack,
+  Box, Heading, Text, VStack, HStack, Button, 
+  Select, useToast, Tag, TagLabel, TagCloseButton,
+  Table, Thead, Tbody, Tr, Th, Td, Spinner,
+  FormControl, FormLabel, Input, Stack, Badge
 } from '@chakra-ui/react';
-import { getUnconfirmedUsers, confirmAccount, deleteUser, getUsers, exportUserAuditLogs } from '../services/api';
+import { 
+  getUsers, getRoles, assignRole, removeRole, 
+  deleteUser, getUnconfirmedUsers, confirmAccount,
+  exportUserAuditLogs
+} from '../services/api';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
-function Admin() {
-  const [users, setUsers] = useState([]); // Неподтвержденные пользователи
-  const [allUsers, setAllUsers] = useState([]); // Все пользователи для экспорта логов
-  const [isLoading, setIsLoading] = useState(true);
+export function AdminPanel() {
+  const [users, setUsers] = useState([]);
+  const [unconfirmedUsers, setUnconfirmedUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState(''); // Для экспорта логов
-  const [days, setDays] = useState(''); // Количество дней для экспорта логов
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [days, setDays] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endDate, setEndDate] = useState('');
   const toast = useToast();
+  const logsSectionRef = useRef(null);
 
-  // Загрузка неподтвержденных пользователей
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getUnconfirmedUsers();
-        if (Array.isArray(data)) {
-          setUsers(data);
-        } else {
-          throw new Error('Неверный формат данных');
-        }
+        const [usersData, rolesData, unconfirmedData] = await Promise.all([
+          getUsers(),
+          getRoles(),
+          getUnconfirmedUsers()
+        ]);
+        setUsers(usersData);
+        setRoles(rolesData);
+        setUnconfirmedUsers(unconfirmedData);
       } catch (err) {
-        const serverError = err.response?.data?.message || 'Не удалось загрузить пользователей';
+        const serverError = err.response?.data.error || 'Ошибка загрузки данных';
         setError(serverError);
         toast({
           title: 'Ошибка',
@@ -52,48 +48,86 @@ function Admin() {
           isClosable: true,
         });
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
+    fetchData();
+  }, [toast]);
 
-    // Загрузка всех пользователей для выпадающего списка
-    const fetchAllUsers = async () => {
+  const handleRoleChange = async (userId, roleName, action) => {
+    try {
+      const command = { UserId: userId, RoleName: roleName };
+      
+      if (action === 'add') {
+        await assignRole(command);
+        toast({
+          title: 'Роль добавлена',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        await removeRole(command);
+        toast({
+          title: 'Роль удалена',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+
+      const updatedUsers = await getUsers();
+      setUsers(updatedUsers);
+    } catch (err) {
+      const serverError = err.response?.data.error || 'Ошибка изменения роли';
+      toast({
+        title: 'Ошибка',
+        description: serverError,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Вы уверены, что хотите удалить пользователя?')) {
       try {
-        const data = await getUsers();
-        if (Array.isArray(data)) {
-          setAllUsers(data);
-        } else {
-          throw new Error('Неверный формат данных');
-        }
+        await deleteUser({ UserId: userId });
+        setUsers(users.filter(user => user.id !== userId));
+        toast({
+          title: 'Пользователь удален',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
       } catch (err) {
+        const serverError = err.response?.data.error || 'Ошибка удаления пользователя';
         toast({
           title: 'Ошибка',
-          description: 'Не удалось загрузить список всех пользователей.',
+          description: serverError,
           status: 'error',
           duration: 5000,
           isClosable: true,
         });
       }
-    };
+    }
+  };
 
-    fetchUsers();
-    fetchAllUsers();
-  }, [toast]);
-
-  // Подтверждение аккаунта
-  const handleConfirm = async (userId) => {
+  const handleConfirmUser = async (userId) => {
     try {
       await confirmAccount({ userId });
-      setUsers(users.filter((u) => u.id !== userId));
+      setUnconfirmedUsers(unconfirmedUsers.filter(user => user.id !== userId));
       toast({
-        title: 'Успех',
-        description: 'Аккаунт подтвержден',
+        title: 'Пользователь подтвержден',
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
+      const updatedUsers = await getUsers();
+      setUsers(updatedUsers);
     } catch (err) {
-      const serverError = err.response?.data?.message || 'Не удалось подтвердить аккаунт';
+      const serverError = err.response?.data.error || 'Ошибка подтверждения пользователя';
       toast({
         title: 'Ошибка',
         description: serverError,
@@ -104,36 +138,16 @@ function Admin() {
     }
   };
 
-  // Удаление аккаунта
-  const handleDelete = async (userId) => {
-    try {
-      await deleteUser({ userId });
-      setUsers(users.filter((u) => u.id !== userId));
-      toast({
-        title: 'Успех',
-        description: 'Пользователь удален',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err) {
-      const serverError = err.response?.data?.message || 'Не удалось удалить пользователя';
-      toast({
-        title: 'Ошибка',
-        description: serverError,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
+  const handleViewLogs = (userId) => {
+    setSelectedUserId(userId);
+    logsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Экспорт логов
   const handleExportLogs = async () => {
-    if (!selectedUserId || !days) {
+    if (!selectedUserId) {
       toast({
         title: 'Ошибка',
-        description: 'Выберите пользователя и укажите количество дней',
+        description: 'Выберите пользователя',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -142,11 +156,17 @@ function Admin() {
     }
 
     try {
-      const blob = await exportUserAuditLogs(selectedUserId, days);
+      const blob = await exportUserAuditLogs(
+        selectedUserId, 
+        days ? parseInt(days) : null,
+        startTime ? new Date(startTime) : null,
+        endDate ? new Date(endDate) : null
+      );
+      
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `user_logs_${selectedUserId}_${days}_days.csv`); // Имя файла
+      link.setAttribute('download', `audit_logs_${selectedUserId}_${new Date().toISOString()}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -158,7 +178,7 @@ function Admin() {
         isClosable: true,
       });
     } catch (err) {
-      const serverError = err.response?.data?.message || 'Не удалось экспортировать логи';
+      const serverError = err.response?.data.error || 'Не удалось экспортировать логи';
       toast({
         title: 'Ошибка',
         description: serverError,
@@ -169,108 +189,227 @@ function Admin() {
     }
   };
 
+  if (loading) return (
+    <Box textAlign="center" mt={10}>
+      <Spinner size="xl" />
+    </Box>
+  );
+
+  if (error) return <Text color="red.500" textAlign="center">{error}</Text>;
+
   return (
     <Box minH="100vh" display="flex" flexDirection="column" bg="gray.50">
       <Header />
-      <Box flex="1" p={6} maxW="lg" mx="auto">
-        <Heading as="h2" mb={4} color="blue.600">Администрирование</Heading>
-
+      
+      <Box flex="1" p={6} maxW="6xl" mx="auto" mt={10}>
+        <Heading as="h2" mb={6} color="blue.600">Панель администратора</Heading>
+        
         {/* Секция неподтвержденных пользователей */}
-        <Text mb={4} fontSize="lg">Неподтвержденные пользователи:</Text>
-        {isLoading ? (
-          <Text textAlign="center">Загрузка...</Text>
-        ) : error ? (
-          <Text color="red.500" textAlign="center">{error}</Text>
-        ) : users.length === 0 ? (
-          <Text textAlign="center">Нет неподтвержденных пользователей</Text>
-        ) : (
-          <Table variant="simple" bg="white" borderRadius="md" boxShadow="md">
+        <Box mb={10}>
+          <Heading as="h3" size="md" mb={4}>Неподтвержденные пользователи</Heading>
+          
+          {unconfirmedUsers.length === 0 ? (
+            <Text fontSize="md" color="gray.500" py={4}>
+              Нет неподтвержденных пользователей
+            </Text>
+          ) : (
+            <Table variant="simple" bg="white" borderRadius="lg" boxShadow="md">
+              <Thead bg="blue.50">
+                <Tr>
+                  <Th>Имя</Th>
+                  <Th>Email</Th>
+                  <Th>Статус</Th>
+                  <Th>Действия</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {unconfirmedUsers.map(user => (
+                  <Tr key={user.id}>
+                    <Td>{user.firstName} {user.lastName}</Td>
+                    <Td>{user.email}</Td>
+                    <Td>
+                      <Tag colorScheme="orange" size="sm">
+                        Ожидает подтверждения
+                      </Tag>
+                    </Td>
+                    <Td>
+                      <HStack spacing={3}>
+                        <Button 
+                          colorScheme="green" 
+                          size="sm"
+                          onClick={() => handleConfirmUser(user.id)}
+                        >
+                          Подтвердить
+                        </Button>
+                        <Button 
+                          colorScheme="red" 
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          Удалить
+                        </Button>
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
+        </Box>
+
+        {/* Секция всех пользователей */}
+        <Box mb={10}>
+          <Heading as="h3" size="md" mb={4}>Все пользователи</Heading>
+          <Table variant="simple" bg="white" borderRadius="lg" boxShadow="md">
             <Thead bg="blue.50">
               <Tr>
+                <Th>ID</Th>
                 <Th>Имя</Th>
                 <Th>Email</Th>
+                <Th>Статус</Th>
+                <Th>Роли</Th>
                 <Th>Действия</Th>
               </Tr>
             </Thead>
             <Tbody>
-              {users.map((user) => (
+              {users.map(user => (
                 <Tr key={user.id}>
-                  <Td>{user.name}</Td>
+                  <Td>{user.id}</Td>
+                  <Td>{user.firstName} {user.lastName}</Td>
                   <Td>{user.email}</Td>
                   <Td>
-                    <Button
-                      colorScheme="green"
-                      size="sm"
-                      mr={2}
-                      onClick={() => handleConfirm(user.id)}
-                      _hover={{ transform: 'scale(1.05)' }}
-                      transition="all 0.2s"
-                    >
-                      Подтвердить
-                    </Button>
-                    <Button
-                      colorScheme="red"
-                      size="sm"
-                      onClick={() => handleDelete(user.id)}
-                      _hover={{ transform: 'scale(1.05)' }}
-                      transition="all 0.2s"
-                    >
-                      Удалить
-                    </Button>
+                    <Stack direction="row" spacing={2}>
+                      <Badge 
+                        colorScheme={user.emailConfirmed ? 'green' : 'orange'} 
+                        px={2} py={1} borderRadius="md"
+                      >
+                        {user.emailConfirmed ? 'Email подтвержден' : 'Email не подтвержден'}
+                      </Badge>
+                      <Badge 
+                        colorScheme={user.registrationStatus === 'Confirmed' ? 'green' : 'orange'} 
+                        px={2} py={1} borderRadius="md"
+                      >
+                        {user.registrationStatus === 'Confirmed' ? 'Аккаунт подтвержден' : 'Аккаунт не подтвержден'}
+                      </Badge>
+                    </Stack>
+                  </Td>
+                  <Td>
+                    <HStack spacing={2} wrap="wrap">
+                      {user.roles?.map(role => (
+                        <Tag key={role} size="sm" variant="solid" colorScheme="blue">
+                          <TagLabel>{role}</TagLabel>
+                          <TagCloseButton 
+                            onClick={() => handleRoleChange(user.id, role, 'remove')} 
+                          />
+                        </Tag>
+                      ))}
+                      
+                      <Select
+                        value=""
+                        size="sm"
+                        w="150px"
+                        onChange={(e) => 
+                          e.target.value && handleRoleChange(user.id, e.target.value, 'add')
+                        }
+                        placeholder="Добавить роль"
+                      >
+                        {roles
+                          .filter(role => !user.roles?.includes(role.name))
+                          .map(role => (
+                            <option key={role.id} value={role.name}>
+                              {role.name}
+                            </option>
+                          ))}
+                      </Select>
+                    </HStack>
+                  </Td>
+                  <Td>
+                    <HStack spacing={3}>
+                      <Button 
+                        colorScheme="teal" 
+                        size="sm"
+                        onClick={() => handleViewLogs(user.id)}
+                      >
+                        Логи
+                      </Button>
+                      <Button 
+                        colorScheme="red" 
+                        size="sm"
+                        onClick={() => handleDeleteUser(user.id)}
+                      >
+                        Удалить
+                      </Button>
+                    </HStack>
                   </Td>
                 </Tr>
               ))}
             </Tbody>
           </Table>
-        )}
+        </Box>
 
         {/* Секция экспорта логов */}
-        <Box mt={8} p={4} bg="white" borderRadius="md" boxShadow="md">
-          <Text mb={4} fontSize="lg">Экспорт логов пользователя:</Text>
-          <VStack spacing={4}>
+        <Box ref={logsSectionRef} p={6} bg="white" borderRadius="lg" boxShadow="md" mb={10}>
+          <Heading as="h3" size="md" mb={4}>Экспорт логов пользователя</Heading>
+          
+          <VStack spacing={4} align="stretch">
             <FormControl>
-              <FormLabel>Выберите пользователя</FormLabel>
-              <Select
-                placeholder="Выберите пользователя"
+              <FormLabel>ID пользователя</FormLabel>
+              <Input
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
-                borderColor="blue.200"
-                _hover={{ borderColor: 'blue.300' }}
-                focusBorderColor="blue.500"
-              >
-                {allUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName} {user.email}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl>
-              <FormLabel>Количество дней</FormLabel>
-              <Input
-                type="number"
-                placeholder="Введите количество дней"
-                value={days}
-                onChange={(e) => setDays(e.target.value)}
-                borderColor="blue.200"
-                _hover={{ borderColor: 'blue.300' }}
-                focusBorderColor="blue.500"
+                placeholder="Введите UUID пользователя"
               />
             </FormControl>
-            <Button
-              colorScheme="blue"
+            
+            <FormControl>
+              <FormLabel>Количество дней (опционально)</FormLabel>
+              <Input
+                type="number"
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                placeholder="30"
+              />
+            </FormControl>
+            
+            <HStack spacing={4}>
+              <FormControl>
+                <FormLabel>Начальная дата (опционально)</FormLabel>
+                <Input
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
+              </FormControl>
+              
+              <FormControl>
+                <FormLabel>Конечная дата (опционально)</FormLabel>
+                <Input
+                  type="datetime-local"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </FormControl>
+            </HStack>
+            
+            <Text fontSize="sm" color="gray.500">
+              Если указаны дни, фильтр по датам игнорируется
+            </Text>
+            
+            <Button 
+              colorScheme="blue" 
               onClick={handleExportLogs}
-              _hover={{ transform: 'scale(1.05)' }}
-              transition="all 0.2s"
+              mt={4}
+              alignSelf="flex-start"
             >
               Экспортировать логи
             </Button>
           </VStack>
         </Box>
       </Box>
+      
       <Footer />
     </Box>
   );
 }
 
-export default Admin;
+export default AdminPanel;

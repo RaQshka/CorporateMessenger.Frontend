@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Box, Text } from '@chakra-ui/react';
-import { EncryptionService } from '../services/EncryptionService';
+import { EncryptionService } from './EncryptionService';
 
-function Message({ activity, aesKey, userId }) {
+function EncryptedMessage({ activity, aesKey, userId }) {
   const [decryptedText, setDecryptedText] = useState('[Decrypting...]');
 
   useEffect(() => {
@@ -37,4 +37,4 @@ function Message({ activity, aesKey, userId }) {
   );
 }
 
-export default Message;
+export default EncryptedMessage;

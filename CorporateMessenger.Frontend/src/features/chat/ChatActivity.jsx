@@ -1,3 +1,4 @@
+// features/chat/ChatActivity.jsx
 import { useState, useEffect, useRef } from 'react';
 import {
   Box,
@@ -8,12 +9,16 @@ import {
   IconButton,
   Text,
   useToast,
+  Flex,
+  Avatar,
+  Badge,
+  CloseButton,
+  useColorModeValue
 } from '@chakra-ui/react';
 import { AttachmentIcon } from '@chakra-ui/icons';
 import { getChatActivity, sendMessage, uploadDocument } from '../../services/api';
 import MessageItem from './MessageItem';
 import DocumentItem from './DocumentItem';
-
 
 function ChatActivity({ chatId, userId, connection, userPermissions }) {
   const [activities, setActivities] = useState([]);
@@ -23,10 +28,19 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [file, setFile] = useState(null);
-  // Добавляем состояние для хранения ID сообщения, на которое отвечают
-  const [replyToMessageId, setReplyToMessageId] = useState(null);
+  const [replyToMessage, setReplyToMessage] = useState(null);
   const activitiesRef = useRef(null);
   const toast = useToast();
+  
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const inputBg = useColorModeValue('white', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const replyBg = useColorModeValue('blue.50', 'blue.900');
+  const replyBorder = useColorModeValue('blue.200', 'blue.700');
+  const scrollbarThumb = useColorModeValue('gray.400', 'gray.500');
+  const scrollbarTrack = useColorModeValue('gray.100', 'gray.700');
+  const userMessageBg = useColorModeValue('blue.100', 'blue.900');
+  const otherMessageBg = useColorModeValue('gray.100', 'gray.700');
 
   const canDeleteAnyMessages = (userPermissions & 8) === 8;
   const canDeleteAnyDocuments = (userPermissions & 4) === 4;
@@ -52,6 +66,11 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
       });
     } finally {
       setIsLoading(false);
+      setTimeout(() => {
+        if (activitiesRef.current) {
+          activitiesRef.current.scrollTop = activitiesRef.current.scrollHeight;
+        }
+      }, 100);
     }
   };
 
@@ -76,6 +95,7 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
       };
     }
   }, [connection, chatId, skip]);
+  
   const handleSendMessage = async () => {
     if (!message.trim()) {
       toast({
@@ -89,12 +109,14 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
     }
     setIsSending(true);
     try {
-      // Передаем replyToMessageId, если оно есть
-      await sendMessage({ chatId, content: message, replyToMessageId });
+      await sendMessage({ 
+        chatId, 
+        content: message, 
+        replyToMessageId: replyToMessage?.id 
+      });
       setMessage('');
-      setReplyToMessageId(null); // Сбрасываем после отправки
+      setReplyToMessage(null);
       fetchActivities(skip);
-      activitiesRef.current.scrollTop = activitiesRef.current.scrollHeight;
     } catch (err) {
       toast({
         title: 'Ошибка',
@@ -108,9 +130,8 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
     }
   };
 
-  // Callback для обработки ответа
-  const handleReply = (messageId) => {
-    setReplyToMessageId(messageId);
+  const handleReply = (message) => {
+    setReplyToMessage(message);
   };
 
   const handleKeyDown = (e) => {
@@ -157,80 +178,165 @@ function ChatActivity({ chatId, userId, connection, userPermissions }) {
   };
 
   useEffect(() => {
-    if (file) handleUploadDocument(); // Auto-upload when file is selected
+    if (file) handleUploadDocument();
   }, [file]);
 
   return (
-    <VStack spacing={3} align="stretch" bg="#F5F6FA">
+    <Box 
+      display="flex"
+      flexDirection="column"
+      h="85vh"
+      w="100%"
+      overflow="hidden"
+    >
       <Box
         ref={activitiesRef}
-        maxH="60vh"
+        flex="1"
         overflowY="auto"
-        p={2}
-        borderWidth={1}
-        borderRadius="md"
-        bg="#FFFFFF"
+        p={4}
+        bg={bgColor}
+        sx={{
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: scrollbarTrack,
+            borderRadius: '4px',
+            marginY: '2px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: scrollbarThumb,
+            borderRadius: '4px',
+            border: '2px solid transparent',
+            backgroundClip: 'content-box',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: useColorModeValue('gray.500', 'gray.400'),
+          },
+          scrollbarWidth: 'thin',
+          scrollbarColor: `${scrollbarThumb} ${scrollbarTrack}`,
+        }}
       >
-        {isLoading && <Text>Загрузка...</Text>}
-        {activities.map((activity) => (
-          activity.type === 'Message' ? (
-            <MessageItem
-              key={activity.id}
-              message={activity.data}
-              userId={userId}
-              onUpdate={() => fetchActivities(skip)}
-              onReply={handleReply} // Передаем callback в MessageItem
-              canDeleteAnyMessages={canDeleteAnyMessages}
-            />
-          ) : (
-            <DocumentItem
-              key={activity.id}
-              document={activity.data}
-              userId={userId}
-              onUpdate={() => fetchActivities(skip)}
-              canDeleteAnyDocuments={canDeleteAnyDocuments}
-            />
-          )
-        ))}
+        {isLoading && skip === 0 && (
+          <Flex justify="center" py={4}>
+            <Text color="gray.500">Загрузка сообщений...</Text>
+          </Flex>
+        )}
+        
+        {activities.length === 0 && !isLoading && (
+          <Flex 
+            direction="column" 
+            align="center" 
+            justify="center" 
+            h="100%"
+            py={10}
+            color="gray.500"
+          >
+            <Text fontSize="lg" mb={2}>Нет сообщений</Text>
+            <Text textAlign="center" maxW="md">
+              Начните общение - отправьте первое сообщение или прикрепите файл
+            </Text>
+          </Flex>
+        )}
+        
+        <VStack align="stretch" spacing={3}>
+          {activities.map((activity) => (
+            activity.type === 'Message' ? (
+              <MessageItem
+                key={activity.id}
+                message={activity.data}
+                userId={userId}
+                onUpdate={() => fetchActivities(skip)}
+                onReply={handleReply}
+                canDeleteAnyMessages={canDeleteAnyMessages}
+                userMessageBg={userMessageBg}
+                otherMessageBg={otherMessageBg}
+              />
+            ) : (
+              <DocumentItem
+                key={activity.id}
+                document={activity.data}
+                userId={userId}
+                onUpdate={() => fetchActivities(skip)}
+                canDeleteAnyDocuments={canDeleteAnyDocuments}
+              />
+            )
+          ))}
+        </VStack>
+        
+        {hasMore && !isLoading && (
+          <Flex justify="center" mt={4}>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => {
+                const newSkip = skip + 50;
+                setSkip(newSkip);
+                fetchActivities(newSkip, true);
+              }}
+            >
+              Загрузить больше
+            </Button>
+          </Flex>
+        )}
       </Box>
-      {/* Можно добавить визуальную индикацию ответа */}
-      {replyToMessageId && (
-        <Text fontSize="sm" color="gray.500">
-          Ответ на сообщение #{replyToMessageId}
-        </Text>
-      )}
-      <HStack spacing={2} align="stretch">
-        <IconButton
-          icon={<AttachmentIcon />}
-          onClick={() => document.getElementById('file-input').click()}
-          aria-label="Upload document"
-          isDisabled={isSending || isLoading}
-        />
-        <Input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Введите сообщение..."
-          isDisabled={isSending || isLoading}
-          bg="#FFFFFF"
-          borderColor="#E2E8F0"
-        />
-        <Button
-          colorScheme="blue"
-          onClick={handleSendMessage}
-          isLoading={isSending}
-          loadingText="Отправка..."
+      
+      {replyToMessage && (
+        <Flex 
+          p={3} 
+          borderRadius="md" 
+          bg={replyBg}
+          borderLeftWidth="4px"
+          borderLeftColor={replyBorder}
+          align="center"
+          justify="space-between"
         >
-          Отправить
-        </Button>
-      </HStack>
-      <input
-        id="file-input"
-        type="file"
-        style={{ display: 'none' }}
-        onChange={(e) => setFile(e.target.files[0])}
-      />
-    </VStack>
+          <Box flex="1" mr={2}>
+            <Text fontWeight="bold" fontSize="sm">
+              Ответ на: {replyToMessage.senderName || "Пользователь"}
+            </Text>
+            <Text fontSize="sm" isTruncated>
+              {replyToMessage.content}
+            </Text>
+          </Box>
+          <CloseButton 
+            size="sm" 
+            onClick={() => setReplyToMessage(null)} 
+          />
+        </Flex>
+      )}
+      
+      <Box p={3} borderTopWidth="1px" borderColor={borderColor}>
+        <HStack>
+          <IconButton
+            icon={<AttachmentIcon />}
+            onClick={() => document.getElementById('file-input').click()}
+            aria-label="Прикрепить файл"
+            variant="ghost"
+          />
+          <Input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Введите сообщение..."
+            isDisabled={isSending || isLoading}
+          />
+          <Button 
+            onClick={handleSendMessage}
+            isLoading={isSending}
+            px={6}
+          >
+            Отправить
+          </Button>
+        </HStack>
+        <input
+          id="file-input"
+          type="file"
+          style={{ display: 'none' }}
+          onChange={(e) => setFile(e.target.files[0])}
+        />
+      </Box>
+    </Box>
   );
 }
 

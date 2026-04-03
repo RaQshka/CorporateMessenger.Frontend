@@ -78,7 +78,7 @@ export function Register() {
         });
       }
     } catch (err) {
-      const serverError = err.response?.data?.message || 'Произошла ошибка при регистрации';
+      const serverError = err.response?.data.error || 'Произошла ошибка при регистрации';
       setError(serverError);
       toast({
         title: 'Ошибка',

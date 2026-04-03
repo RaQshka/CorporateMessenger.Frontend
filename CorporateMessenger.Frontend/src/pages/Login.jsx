@@ -52,7 +52,7 @@ export function Login() {
         });
       }
     } catch (err) {
-      const serverError = err.response?.data?.message || 'Произошла ошибка при входе';
+      const serverError = err.response?.data.error || 'Произошла ошибка при входе';
       setError(serverError);
       toast({
         title: 'Ошибка',

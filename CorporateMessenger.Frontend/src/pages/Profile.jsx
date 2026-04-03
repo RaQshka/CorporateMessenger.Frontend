@@ -16,7 +16,7 @@ export function Profile() {
         const data = await getProfile();
         setProfile(data);
       } catch (err) {
-        const serverError = err.response?.data?.message || 'Не удалось загрузить профиль';
+        const serverError = err.response?.data.error || 'Не удалось загрузить профиль';
         setError(serverError);
         toast({
           title: 'Ошибка',

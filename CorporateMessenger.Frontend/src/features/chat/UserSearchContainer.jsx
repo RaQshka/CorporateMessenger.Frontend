@@ -30,7 +30,7 @@ function UserSearchContainer({ onSelectUser }) {
       if (!Array.isArray(data)) throw new Error('Invalid users data format');
       setUsers(data);
     } catch (err) {
-      const serverError = err.response?.data?.message || 'Не удалось загрузить пользователей';
+      const serverError = err.response?.data.error || 'Не удалось загрузить пользователей';
       setError(serverError);
       toast({
         title: 'Ошибка',

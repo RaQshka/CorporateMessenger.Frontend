@@ -107,19 +107,25 @@ function Dashboard() {
           {selectedChat ? (
             <>
               <Flex align="center" mb={4}>
-                <Flex>
+                <Flex align="center" dispay="flex" justifyContent="space-between">
+
+                  <Heading as="h3" size="md">
+                    {selectedChat.name || 'Без названия'}
+                  </Heading>
                   {canManageAccess && (
                     <Button
+                        align="right"
                       size="md"
                       mr={2}
+                        ml={20}
+
+
+                      
                       onClick={() => setIsAccessModalOpen(true)}
                     >
                       Настроить доступ
                     </Button>
                   )}
-                  <Heading as="h3" size="md">
-                    {selectedChat.name || 'Без названия'}
-                  </Heading>
                 </Flex>
               </Flex>
               <ChatActivity

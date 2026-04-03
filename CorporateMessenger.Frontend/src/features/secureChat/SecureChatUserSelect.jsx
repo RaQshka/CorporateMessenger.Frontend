@@ -36,7 +36,7 @@ function SecureChatUserSelect({ onSelectUser, selectedUser }) {
       if (!Array.isArray(data)) throw new Error('Invalid users data format');
       setUsers(data);
     } catch (err) {
-      const serverError = err.response?.data?.message || 'Не удалось загрузить пользователей';
+      const serverError = err.response?.data.error || 'Не удалось загрузить пользователей';
       setError(serverError);
       toast({
         title: 'Ошибка',
@@ -71,10 +71,10 @@ function SecureChatUserSelect({ onSelectUser, selectedUser }) {
   };
 
   return (
-    <Box p={4} bg="white" borderRadius="md" boxShadow="md" maxW="lg" color="black">
+    <Box p={4} bg="white" borderRadius="md" boxShadow="md" maxW="lg" color="light">
       <VStack spacing={4}>
         {selectedUser && (
-          <Text color="white">
+          <Text color="black">
             Выбран: {selectedUser.firstName} {selectedUser.lastName}
           </Text>
         )}
@@ -84,7 +84,7 @@ function SecureChatUserSelect({ onSelectUser, selectedUser }) {
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           isDisabled={isLoading}
-          bg="gray.700"
+          bg="lignt"
           borderColor="white"
           _hover={{ borderColor: 'gray.500' }}
           focusBorderColor="blue.500"

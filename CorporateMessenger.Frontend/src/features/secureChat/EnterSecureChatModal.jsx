@@ -1,20 +1,12 @@
 import { useState } from 'react';
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  ModalFooter,
-  Button,
-  Input,
-  FormControl,
-  FormLabel,
-  useToast,
+import { 
+  Modal, ModalOverlay, ModalContent, ModalHeader, 
+  ModalCloseButton, ModalBody, ModalFooter, 
+  Button, Input, FormControl, FormLabel,
+  useToast 
 } from '@chakra-ui/react';
 import { enterSecureChat } from '../../services/api';
-import { generateKeyPair, computeSharedSecret, deriveAESKey } from './EncryptionService';
+import { EncryptionService } from './EncryptionService';
 
 function EnterSecureChatModal({ isOpen, onClose, onChatEntered, userId }) {
   const [accessKey, setAccessKey] = useState('');
@@ -25,7 +17,7 @@ function EnterSecureChatModal({ isOpen, onClose, onChatEntered, userId }) {
     if (!accessKey.trim()) {
       toast({
         title: 'Ошибка',
-        description: 'Код доступа обязателен',
+        description: 'Введите код доступа',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -34,37 +26,51 @@ function EnterSecureChatModal({ isOpen, onClose, onChatEntered, userId }) {
     }
 
     setIsLoading(true);
+    
     try {
-      const { publicKey, privateKey, cryptoKeyPair } = await generateKeyPair();
+      // 1. Генерация ключевой пары
+      const keyPair = await EncryptionService.generateKeyPair();
+      
+      // 2. Экспорт публичного ключа в формате Base64
+      const publicKey = await EncryptionService.exportPublicKey(keyPair.publicKey);
+      
+      // 3. Отправка запроса на сервер
       const response = await enterSecureChat({
         accessKey,
-        userId,
-        publicKey,
+        publicKey: publicKey,
+        userId
       });
-      const sharedSecret = await computeSharedSecret(privateKey, response.otherPublicKey);
-      const aesKey = await deriveAESKey(sharedSecret);
+
+      console.log('Server response:', response); // Добавьте лог для отладки
+
+      // Проверяем, что otherPublicKey существует и в правильном формате
+      if (!response.otherPublicKey) {
+        throw new Error('Сервер не вернул публичный ключ собеседника');
+      }
+
+      // 4. Вычисление общего секретного ключа
+      const aesKey = await EncryptionService.deriveSharedSecret(
+        keyPair.privateKey, 
+        response.otherPublicKey
+      );
+
+      // 5. Передача данных в родительский компонент
       onChatEntered({
         chatId: response.chatId,
-        salt: response.salt, // base64
-        otherPublicKey: response.otherPublicKey, // base64
-        privateKey,
-        cryptoKeyPair,
-        sharedSecret,
         aesKey,
+        privateKey: keyPair.privateKey,
+        otherPublicKey: response.otherPublicKey,
+        accessKey,
+        isCreator: false,
+        salt: response.salt
       });
-      toast({
-        title: 'Успех',
-        description: 'Вход в чат выполнен.',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
+      
       onClose();
-      setAccessKey('');
-    } catch (err) {
+    } catch (error) {
+      console.error('Ошибка входа в чат:', error);
       toast({
         title: 'Ошибка',
-        description: 'Не удалось войти в чат.',
+        description: error.message || 'Не удалось войти в чат. Проверьте код доступа',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -77,32 +83,31 @@ function EnterSecureChatModal({ isOpen, onClose, onChatEntered, userId }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalOverlay />
-      <ModalContent bg="white.800" color="black">
-        <ModalHeader>Войти в защищенный чат</ModalHeader>
+      <ModalContent>
+        <ModalHeader>Войти в чат</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <FormControl isRequired>
+          <FormControl>
             <FormLabel>Код доступа</FormLabel>
-            <Input
+            <Input 
               value={accessKey}
               onChange={(e) => setAccessKey(e.target.value)}
               placeholder="Введите код доступа"
-              bg="gray.700"
-              borderColor="gray.600"
-              _hover={{ borderColor: 'gray.500' }}
-              focusBorderColor="blue.500"
+              autoFocus
             />
           </FormControl>
         </ModalBody>
         <ModalFooter>
-          <Button
-            colorScheme="blue"
+          <Button 
+            colorScheme="blue" 
             onClick={handleEnter}
             isLoading={isLoading}
-            bg="blue.600"
-            _hover={{ bg: 'blue.500' }}
+            loadingText="Вход..."
           >
             Войти
+          </Button>
+          <Button variant="ghost" onClick={onClose} ml={3}>
+            Отмена
           </Button>
         </ModalFooter>
       </ModalContent>

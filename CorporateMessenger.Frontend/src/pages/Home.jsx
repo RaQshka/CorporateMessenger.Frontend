@@ -1,36 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Box, Heading, Text, Button } from '@chakra-ui/react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { getProfile } from '../services/api';
 
 function Home() {
   const navigate = useNavigate();
-  const [isChecking, setIsChecking] = useState(true);
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
     if (token) {
-      getProfile()
-        .then(() => {
-          // Если профиль получен успешно, перенаправляем на dashboard
-          navigate('/dashboard');
-        })
-        .catch(() => {
-          // Если токен невалиден, удаляем его и остаемся на странице
-          localStorage.removeItem('token');
-          setIsChecking(false);
-        });
-    } else {
-      setIsChecking(false);
+      navigate('/dashboard');
     }
-  }, [navigate]);
-
-  // Показываем пустой экран во время проверки токена
-  if (isChecking) {
-    return null;
-  }
+  }, [token, navigate]);
 
   return (
     <Box minH="100vh" display="flex" flexDirection="column">
